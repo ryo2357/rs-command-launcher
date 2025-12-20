@@ -1,0 +1,19 @@
+{
+  "My Local Snippet": {
+    "scope": "markdown",
+    "prefix": "ideatemp",
+    "body": [
+      "# ${TM_FILENAME}",
+      "作成日時: ${CURRENT_YEAR}-${CURRENT_MONTH}-${CURRENT_DATE}:${CURRENT_HOUR}:${CURRENT_MINUTE}",
+      "",
+      "## 概要",
+      "",
+      "- ",
+      "",
+      "## 仕様",
+      "",
+      "- "
+    ],
+    "description": "アイディアファイルのテンプレート"
+  }
+}

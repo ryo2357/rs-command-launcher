@@ -1,5 +1,5 @@
 ---
-name: report_from_last_commit
+name: finalize_implementation
 description: 最新コミットで行った実装の仕様書更新と報告書作成
 
 tools: ['execute', 'read', 'edit', 'search']

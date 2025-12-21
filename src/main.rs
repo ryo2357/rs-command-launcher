@@ -5,6 +5,7 @@ use log::{info,error};
 mod config;
 mod paths;
 mod runner;
+mod tray;
 fn main()  {
 
     init_logger();
@@ -70,9 +71,26 @@ fn app() -> anyhow::Result<()> {
             return Ok(());
         }
         _ => {
-            let settings = config::load_settings(&settings_path)?;
-            let _env_vars = config::load_env_vars(&env_path)?;
-            info!("設定を読み込みました: {} 件のコマンド", settings.commands.len());
+            match config::load_settings(&settings_path) {
+                Ok(settings) => {
+                    info!("設定を読み込みました: {} 件のコマンド", settings.commands.len());
+                }
+                Err(e) => {
+                    error!("設定ファイルの読み込みに失敗しました: {e:?}");
+                }
+            }
+
+            match config::load_env_vars(&env_path) {
+                Ok(env) => {
+                    info!("環境変数を読み込みました: {} 件", env.len());
+                }
+                Err(e) => {
+                    error!("環境変数ファイルの読み込みに失敗しました: {e:?}");
+                }
+            }
+
+            info!("常駐モードで起動します（トレイから終了できます）");
+            tray::run_tray()?;
         }
     }
   Ok(())

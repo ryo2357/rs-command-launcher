@@ -1,25 +1,43 @@
+use log::LevelFilter;
+use anyhow::Context;
+use log::{info,error};
+
 mod config;
 mod paths;
 mod runner;
+fn main()  {
 
-use anyhow::Context;
+    init_logger();
+    
+    match app() {
+        Ok(_) => {}
+        Err(e) => {
+            error!("エラー: {:?}", e);
+            std::process::exit(1);
+        }
+    }
 
-fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
-        )
+
+}
+
+fn init_logger() {
+    // ログ初期化
+    // DebugビルドならInfoレベル、Releaseビルドならログ出力しない
+    let is_debug = cfg!(debug_assertions);
+    env_logger::Builder::new()
+        .filter_level(if is_debug { LevelFilter::Info } else { LevelFilter::Off })
         .init();
+}
 
+fn app() -> anyhow::Result<()> {
     let settings_path = paths::settings_path()?;
     let env_path = paths::env_path()?;
 
     let args: Vec<String> = std::env::args().collect();
     match args.get(1).map(|s| s.as_str()) {
         Some("paths") => {
-            println!("settings: {}", settings_path.display());
-            println!("env: {}", env_path.display());
+            info!("settings: {}", settings_path.display());
+            info!("env: {}", env_path.display());
             return Ok(());
         }
         Some("run-first") => {
@@ -31,7 +49,7 @@ fn main() -> anyhow::Result<()> {
                 .context("commands が空です")?;
 
             runner::spawn_command(first, &env_vars)?;
-            tracing::info!(name = %first.name, "起動しました");
+            info!("{:?}を起動しました", first.name);
             return Ok(());
         }
         Some("run") => {
@@ -48,15 +66,14 @@ fn main() -> anyhow::Result<()> {
                 .with_context(|| format!("指定されたコマンドが見つかりません: {name}"))?;
 
             runner::spawn_command(cmd, &env_vars)?;
-            tracing::info!(name = %cmd.name, "起動しました");
+            info!("{:?}を起動しました", cmd.name);
             return Ok(());
         }
         _ => {
             let settings = config::load_settings(&settings_path)?;
             let _env_vars = config::load_env_vars(&env_path)?;
-            tracing::info!(commands = settings.commands.len(), "設定を読み込みました");
+            info!("設定を読み込みました: {} 件のコマンド", settings.commands.len());
         }
     }
-
-    Ok(())
+  Ok(())
 }

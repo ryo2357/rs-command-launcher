@@ -5,6 +5,7 @@ use log::{info,error};
 mod config;
 mod paths;
 mod runner;
+mod ui;
 fn main()  {
 
     init_logger();
@@ -70,9 +71,13 @@ fn app() -> anyhow::Result<()> {
             return Ok(());
         }
         _ => {
-            let settings = config::load_settings(&settings_path)?;
-            let _env_vars = config::load_env_vars(&env_path)?;
-            info!("設定を読み込みました: {} 件のコマンド", settings.commands.len());
+            if args.len() >= 2 {
+                let settings = config::load_settings(&settings_path)?;
+                let _env_vars = config::load_env_vars(&env_path)?;
+                info!("設定を読み込みました: {} 件のコマンド", settings.commands.len());
+                return Ok(());
+            }
+            ui::run()?;
         }
     }
   Ok(())

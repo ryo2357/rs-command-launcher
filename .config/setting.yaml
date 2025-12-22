@@ -1,0 +1,19 @@
+commands:
+  - name: "notepad"
+    program: "notepad.exe"
+    args: []
+    cwd: null
+
+  - name: "open-home"
+    program: "explorer.exe"
+    args:
+      - "."
+    cwd: "C:\\Users\\user"
+
+  - name: "open-url"
+    program: "cmd.exe"
+    args:
+      - "/c"
+      - "start"
+      - ""
+      - "https://example.com"

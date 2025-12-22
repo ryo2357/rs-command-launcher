@@ -2,13 +2,11 @@ commands:
   - name: "notepad"
     program: "notepad.exe"
     args: []
-    cwd: null
 
   - name: "open-home"
     program: "explorer.exe"
     args:
       - "."
-    cwd: "C:\\Users\\user"
 
   - name: "open-url"
     program: "cmd.exe"
@@ -17,3 +15,11 @@ commands:
       - "start"
       - ""
       - "https://example.com"
+
+  - name: "env-test"
+    program: "$program"
+    args:
+      - "$arg1"
+      - "$arg2"
+      - "$arg1"
+      - "$arg3"

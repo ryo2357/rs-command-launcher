@@ -1,15 +1,16 @@
 use eframe::egui;
 use log::{error, info};
 
-use crate::{config, paths, runner};
+use crate::runner;
+use crate::config::{Settings, EnvVars};
 
-pub fn run() -> anyhow::Result<()> {
+pub fn run(settings: Settings, env_vars: EnvVars) -> anyhow::Result<()> {
     let native_options = eframe::NativeOptions::default();
 
     eframe::run_native(
         "command-launcher",
         native_options,
-        Box::new(|_cc| Ok(Box::new(LauncherApp::new()?))),
+        Box::new(|_cc| Ok(Box::new(LauncherApp::new(settings,env_vars)?))),
     )
     .map_err(|e| anyhow::Error::msg(format!("UI を起動できません: {e:?}")))?;
 
@@ -19,28 +20,17 @@ pub fn run() -> anyhow::Result<()> {
 struct LauncherApp {
     command_input: String,
     status: String,
-    settings: Option<config::Settings>,
-    env_vars: Option<config::EnvVars>,
+    settings: Option<Settings>,
+    env_vars: Option<EnvVars>,
 }
 
 impl LauncherApp {
-    fn new() -> anyhow::Result<Self> {
-        let (settings, env_vars, status) = match load_config() {
-            Ok((settings, env_vars)) => {
-                let status = format!("設定を読み込みました: {} 件のコマンド", settings.commands.len());
-                (Some(settings), Some(env_vars), status)
-            }
-            Err(e) => {
-                error!("設定読み込みに失敗しました: {e:?}");
-                (None, None, format!("設定読み込みに失敗しました: {e:#}"))
-            }
-        };
-
+    fn new(settings: Settings, env_vars: EnvVars) -> anyhow::Result<Self> {
         Ok(Self {
             command_input: String::new(),
-            status,
-            settings,
-            env_vars,
+            status: format!("設定を読み込みました: {} 件のコマンド", settings.commands.len()),
+            settings: Some(settings),
+            env_vars: Some(env_vars),
         })
     }
 
@@ -98,14 +88,4 @@ impl eframe::App for LauncherApp {
             ui.label(&self.status);
         });
     }
-}
-
-fn load_config() -> anyhow::Result<(config::Settings, config::EnvVars)> {
-    let settings_path = paths::settings_path()?;
-    let env_path = paths::env_path()?;
-
-    let settings = config::load_settings(&settings_path)?;
-    let env_vars = config::load_env_vars(&env_path)?;
-
-    Ok((settings, env_vars))
 }

@@ -16,10 +16,13 @@
   - エントリーポイント
   - 設定読み込みと簡易 CLI を提供する
   - 引数なしの場合は何もしない（最小 UI の呼び出しはコメントアウト中）
-- src/paths.rs
-  - 設定ファイルの探索パスを提供する
+- src/model/mod.rs
+  - ドメインモデルのモジュール定義
+- src/model/commands.rs
+  - コマンド定義と操作（検索、マージ、重複排除、変数展開）
 - src/config.rs
-  - setting.yaml と env.yaml のデシリアライズと読み込み
+  - 設定ファイルの探索パス解決と setting.yaml / env.yaml の読み込み
+  - 読み込み用の構造体（LoadSettings / LoadEnv）と、モデル（Commands）への変換
 - src/runner.rs
   - 設定に基づくプロセス起動
 - src/ui.rs
@@ -40,7 +43,7 @@
   - Debug ビルドは Info 以上を出力する
   - Release ビルドはログ出力を行わない
 - 簡易 CLI の出力
-  - `settings` は設定（置換後）をログ出力する
+  - `list` はコマンド一覧（置換後）をログ出力する
   - `run-first` と `run` は起動したコマンド名をログ出力する
 
 ## 設定ファイル
@@ -51,6 +54,7 @@
   - コマンド一覧を定義する
 - env.yaml
   - 置換用の変数（キーと値）を定義する
+  - YAML は env 配下にマップを持つ
 
 ## 設定サンプル
 
@@ -58,12 +62,14 @@
 
 ## データ構造
 
-- Settings
-  - commands: CommandSpec の配列
 - CommandSpec
   - name: コマンド識別子
   - program: 実行ファイル
   - args: 引数配列（省略可）
+- Commands
+  - CommandSpec の配列を内包する
+  - name の重複は排除される
+  - name 指定で検索できる
 - EnvVars
   - 置換変数のマップ（キーと値）
 

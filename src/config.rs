@@ -1,83 +1,85 @@
-use std::{collections::BTreeMap, fs, path::Path};
+use std::fs;
+use std::path::PathBuf;
 
 use anyhow::Context;
 use serde::Deserialize;
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct Settings {
-    pub commands: Vec<CommandSpec>,
+use crate::model::commands::{CommandSpec, Commands, EnvVars};
+
+// 設定のパス
+
+fn app_name() -> &'static str {
+    env!("CARGO_PKG_NAME")
 }
 
-#[derive(Debug, Clone, Deserialize)]
-pub struct CommandSpec {
-    pub name: String,
-    pub program: String,
-    #[serde(default)]
-    pub args: Vec<String>,
+fn config_dir() -> anyhow::Result<PathBuf> {
+    let home = dirs::home_dir().context("home ディレクトリを取得できません")?;
+    Ok(home.join(".config").join(app_name()))
 }
 
-pub type EnvVars = BTreeMap<String, String>;
+fn settings_path() -> anyhow::Result<PathBuf> {
+    Ok(config_dir()?.join("setting.yaml"))
+}
 
-pub fn load_settings(setting_path: &Path,env_path: &Path) -> anyhow::Result<Settings> {
+fn env_path() -> anyhow::Result<PathBuf> {
+    Ok(config_dir()?.join("env.yaml"))
+}
+// 読み込み用の書式
+#[derive(Debug, Clone, Deserialize)]
+pub struct LoadSettings {
+    commands: Vec<CommandSpec>,
+}
+
+impl LoadSettings {
+    fn inner(self) -> Vec<CommandSpec> {
+        self.commands
+    }
+}
+
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct LoadEnv {
+    env: EnvVars,
+}
+
+impl LoadEnv {
+    fn inner(self) -> EnvVars {
+        self.env
+    }
+}
+
+
+// 将来的にCommands以外の設定を追加する可能性があるため、この関数名にしている
+pub fn load_settings() -> anyhow::Result<Commands> {
+    let setting_path = settings_path()?;
+    let env_path = env_path()?;
+
     let row_settings = load_row_settings(setting_path)?;
-    let env_vars = load_env_vars(env_path)?;
+    let env_vars = load_env_vars(env_path)?.inner();
+
+    let commands = row_settings.inner();
+    let commands = Commands::new(commands);
 
     // 置換処理
-    let expanded = expand_settings(row_settings, &env_vars);
 
-    Ok(expanded)
+    let commands= commands.expand_vars(env_vars);
+
+    Ok(commands)
 }
 
-fn load_row_settings(path: &Path) -> anyhow::Result<Settings> {
-    let content = fs::read_to_string(path)
+fn load_row_settings(path: PathBuf) -> anyhow::Result<LoadSettings> {
+    let content = fs::read_to_string(&path)
         .with_context(|| format!("設定ファイルを読み込めません: {}", path.display()))?;
-    let row_settings = serde_yaml::from_str::<Settings>(&content)
+    let row_settings = serde_yaml::from_str::<LoadSettings>(&content)
         .with_context(|| format!("設定ファイルの YAML を解釈できません: {}", path.display()))?;
     Ok(row_settings)
 }
 
-fn load_env_vars(path: &Path) -> anyhow::Result<EnvVars> {
-    let content = fs::read_to_string(path)
+fn load_env_vars(path: PathBuf) -> anyhow::Result<LoadEnv> {
+    let content = fs::read_to_string(&path)
         .with_context(|| format!("環境変数ファイルを読み込めません: {}", path.display()))?;
-    let env_vars = serde_yaml::from_str::<EnvVars>(&content)
+    let env_vars = serde_yaml::from_str::<LoadEnv>(&content)
         .with_context(|| format!("環境変数ファイルの YAML を解釈できません: {}", path.display()))?;
     Ok(env_vars)
 }
-
-fn expand_settings(settings: Settings, env: &EnvVars) -> Settings {
-
-    let new_settings = Settings {
-        commands: settings.commands.into_iter().map(|cmd| {
-            CommandSpec {
-                name: cmd.name,
-                program: expand_var_in_string(cmd.program, env),
-                args: cmd.args.into_iter()
-                  .map(|arg| expand_var_in_string(arg, env)).collect(),
-            }
-        }).collect(),
-    };
-
-    new_settings
-}
-
-
-// 文字列中の $name を置換。未定義はそのまま残す。
-pub fn expand_var_in_string(s: String, env: &EnvVars) -> String {
-    if s.is_empty() {
-        return s;
-    } 
-
-    if let Some(rest) = s.strip_prefix('$') {
-        let name:String = rest.to_string();
-        if name.is_empty() {
-            return "$".to_string();
-        }
-        if let Some(value) = env.get(&name) {
-            return value.to_string();
-        }
-    } 
-    s
-
-}
-
 

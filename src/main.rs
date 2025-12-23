@@ -2,9 +2,10 @@ use log::LevelFilter;
 use anyhow::Context;
 use log::{info,error};
 
+mod model;
 mod config;
-mod paths;
 mod runner;
+
 // mod ui;
 fn main()  {
 
@@ -31,24 +32,21 @@ fn init_logger() {
 }
 
 fn app() -> anyhow::Result<()> {
-    let settings_path = paths::settings_path()?;
-    let env_path = paths::env_path()?;
-    let settings = config::load_settings(&settings_path,&env_path)?;
+    let commands = config::load_settings()?;
 
     let args: Vec<String> = std::env::args().collect();
     match args.get(1).map(|s| s.as_str()) {
-        Some("settings") => {
-            info!("settings: {:?}", settings);
+        Some("list") => {
+            info!("commands list: {:?}", commands);
             return Ok(());
         }
         Some("run-first") => {
-            let first = settings
-                .commands
+            let first = commands
                 .first()
                 .context("commands が空です")?;
 
             runner::spawn_command(first)?;
-            info!("{:?}を起動しました", first.name);
+            info!("{:?}を起動しました", first.name());
             return Ok(());
         }
         Some("run") => {
@@ -56,14 +54,11 @@ fn app() -> anyhow::Result<()> {
                 .get(2)
                 .context("使い方: command-launcher run <name>")?;
 
-            let cmd = settings
-                .commands
-                .iter()
-                .find(|c| c.name == *name)
+            let cmd = commands.find_by_name(name)
                 .with_context(|| format!("指定されたコマンドが見つかりません: {name}"))?;
 
             runner::spawn_command(cmd)?;
-            info!("{:?}を起動しました", cmd.name);
+            info!("{:?}を起動しました", cmd.name());
             return Ok(());
         }
         _ => {

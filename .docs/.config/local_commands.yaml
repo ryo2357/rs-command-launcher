@@ -1,0 +1,12 @@
+commands:
+  - name: "open-home"
+    program: "explorer.exe"
+    args:
+      - "~/"
+  - name: "env-test"
+    program: "$program"
+    args:
+      - "$arg1"
+      - "$arg2"
+      - "$arg1"
+      - "$arg4"

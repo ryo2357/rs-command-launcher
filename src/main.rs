@@ -1,16 +1,15 @@
-use log::LevelFilter;
 use anyhow::Context;
-use log::{info,error};
+use log::LevelFilter;
+use log::{error, info};
 
-mod model;
 mod config;
+mod model;
 mod runner;
 
 // mod ui;
-fn main()  {
-
+fn main() {
     init_logger();
-    
+
     match app() {
         Ok(_) => {}
         Err(e) => {
@@ -18,16 +17,18 @@ fn main()  {
             std::process::exit(1);
         }
     }
-
-
 }
 
 fn init_logger() {
     // ログ初期化
-    // DebugビルドならInfoレベル、Releaseビルドならログ出力しない
+    // DebugビルドならDEBUGレベル、ReleaseビルドならINGOログ出力しない
     let is_debug = cfg!(debug_assertions);
     env_logger::Builder::new()
-        .filter_level(if is_debug { LevelFilter::Info } else { LevelFilter::Off })
+        .filter_level(if is_debug {
+            LevelFilter::Debug
+        } else {
+            LevelFilter::Info
+        })
         .init();
 }
 
@@ -41,20 +42,17 @@ fn app() -> anyhow::Result<()> {
             return Ok(());
         }
         Some("run-first") => {
-            let first = commands
-                .first()
-                .context("commands が空です")?;
+            let first = commands.first().context("commands が空です")?;
 
             runner::spawn_command(first)?;
             info!("{:?}を起動しました", first.name());
             return Ok(());
         }
         Some("run") => {
-            let name = args
-                .get(2)
-                .context("使い方: command-launcher run <name>")?;
+            let name = args.get(2).context("使い方: command-launcher run <name>")?;
 
-            let cmd = commands.find_by_name(name)
+            let cmd = commands
+                .find_by_name(name)
                 .with_context(|| format!("指定されたコマンドが見つかりません: {name}"))?;
 
             runner::spawn_command(cmd)?;
@@ -66,5 +64,5 @@ fn app() -> anyhow::Result<()> {
             // ui::run()?;
         }
     }
-  Ok(())
+    Ok(())
 }

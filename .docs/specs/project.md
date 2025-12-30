@@ -40,8 +40,8 @@
 - ログ出力は `log` クレートの `info!` と `error!` を使用する
 - ログの初期化は `main` 関数で `init_logger()` を呼び出して行う
 - ログレベル
-  - Debug ビルドは Info 以上を出力する
-  - Release ビルドはログ出力を行わない
+  - Debug ビルドは Debug 以上を出力する
+  - Release ビルドは Info 以上を出力する
 - 簡易 CLI の出力
   - `list` はコマンド一覧（置換後）をログ出力する
   - `run-first` と `run` は起動したコマンド名をログ出力する
@@ -52,6 +52,10 @@
   - `~/.config/command-launcher/`
 - setting.yaml
   - コマンド一覧を定義する
+- local_commands.yaml
+  - ローカル環境専用の追加コマンド一覧を定義する
+  - ファイルが存在しない場合は無視する
+  - `setting.yaml` と `local_commands.yaml` の両方に同名のコマンドが存在する場合、`local_commands.yaml` 側が優先される
 - env.yaml
   - 置換用の変数（キーと値）を定義する
   - YAML は env 配下にマップを持つ

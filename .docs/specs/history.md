@@ -1,5 +1,15 @@
 # 仕様書変更履歴
 
+- 変更日時: 2025-12-30 16:32
+- 変更内容の概要
+  - local_commands.yaml によるローカル専用コマンドの追加定義を仕様に追記
+  - local_commands.yaml が存在しない場合は無視する仕様を追記
+  - 同名コマンドがある場合は local_commands.yaml 側を優先する仕様を追記
+  - ログレベルの仕様を更新（Debug ビルドは Debug、Release ビルドは Info）
+- 変更理由
+
+  - 最新コミットの実装結果を仕様として反映するため
+
 - 変更日時: 2025-12-23 13:58
 - 変更内容の概要
   - 設定パス解決（config_dir/setting.yaml/env.yaml）を paths モジュールから config 側へ集約

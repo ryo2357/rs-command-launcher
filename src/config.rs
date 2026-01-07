@@ -2,7 +2,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use anyhow::Context;
-use log::info;
+// use log::info;
 use serde::Deserialize;
 
 use crate::model::commands::{CommandSpec, Commands, EnvVars};
@@ -31,7 +31,7 @@ fn env_path() -> anyhow::Result<PathBuf> {
 }
 // 読み込み用の書式
 #[derive(Debug, Clone, Deserialize)]
-pub struct LoadSettings {
+struct LoadSettings {
     commands: Vec<CommandSpec>,
 }
 
@@ -41,9 +41,21 @@ impl LoadSettings {
     }
 }
 
+// UIに渡す設定
+#[derive(Debug, Clone, Deserialize)]
+pub struct Settings {
+    commands: Commands,
+}
+
+impl Settings {
+    pub fn commands(self) -> Commands {
+        self.commands
+    }
+}
+
 // 読み込み用の書式
 #[derive(Debug, Clone, Deserialize)]
-pub struct LocalCommands {
+struct LocalCommands {
     commands: Vec<CommandSpec>,
 }
 
@@ -65,7 +77,7 @@ impl LoadEnv {
 }
 
 // 将来的にCommands以外の設定を追加する可能性があるため、この関数名にしている
-pub fn load_settings() -> anyhow::Result<Commands> {
+pub fn load_settings() -> anyhow::Result<Settings> {
     let setting_path = settings_path()?;
     let env_path = env_path()?;
     let local_commands_path = local_commands_path()?;
@@ -88,7 +100,7 @@ pub fn load_settings() -> anyhow::Result<Commands> {
     let commands = commands.expand_vars(env_vars);
     // info!("env_overay : {:?}", commands);
 
-    Ok(commands)
+    Ok(Settings { commands })
 }
 
 fn load_row_settings(path: PathBuf) -> anyhow::Result<LoadSettings> {

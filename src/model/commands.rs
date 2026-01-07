@@ -1,6 +1,6 @@
 use serde::Deserialize;
-use std::collections::HashSet;
 use std::collections::BTreeMap;
+use std::collections::HashSet;
 
 pub type EnvVars = BTreeMap<String, String>;
 
@@ -34,7 +34,7 @@ impl Commands {
         let mut cmds = Commands { inner };
         cmds.dedup_by_name();
         cmds
-    } 
+    }
     pub fn first(&self) -> Option<&CommandSpec> {
         self.inner.first()
     }
@@ -50,7 +50,7 @@ impl Commands {
     }
 
     // nameの重複削除メソッド（最初の出現を残す）
-    fn dedup_by_name(&mut self)  {
+    fn dedup_by_name(&mut self) {
         let mut seen = HashSet::new();
         // retain はクロージャ―がtrueを返す要素だけを残す
         self.inner.retain(|cmd| seen.insert(cmd.name.clone()));
@@ -68,42 +68,41 @@ impl Commands {
 
     // 環境変数による置換処理
     pub fn expand_vars(self, env: EnvVars) -> Self {
-        let new_inner: Vec<CommandSpec> = self.inner.into_iter().map(|cmd| {
-            CommandSpec {
+        let new_inner: Vec<CommandSpec> = self
+            .inner
+            .into_iter()
+            .map(|cmd| CommandSpec {
                 name: cmd.name.clone(),
                 program: expand_var_in_string(cmd.program, &env),
-                args: cmd.args.iter()
-                  .map(|arg| expand_var_in_string(arg.clone(), &env)).collect(),
-            }
-        }).collect();
+                args: cmd
+                    .args
+                    .iter()
+                    .map(|arg| expand_var_in_string(arg.clone(), &env))
+                    .collect(),
+            })
+            .collect();
 
         Commands { inner: new_inner }
     }
-
 }
-
 
 // 文字列中の $name を置換。未定義はそのまま残す。
 pub fn expand_var_in_string(s: String, env: &EnvVars) -> String {
     if s.is_empty() {
         return s;
-    } 
+    }
 
     if let Some(rest) = s.strip_prefix('$') {
-        let name:String = rest.to_string();
+        let name: String = rest.to_string();
         if name.is_empty() {
             return "$".to_string();
         }
         if let Some(value) = env.get(&name) {
             return value.to_string();
         }
-    } 
+    }
     s
-
 }
-
-
-
 
 #[cfg(test)]
 mod tests {
@@ -113,9 +112,21 @@ mod tests {
     fn dedup_by_name_removes_duplicates() {
         let mut cmds = Commands {
             inner: vec![
-                CommandSpec { name: "a".into(), program: "p1".into(), args: vec![] },
-                CommandSpec { name: "b".into(), program: "p2".into(), args: vec![] },
-                CommandSpec { name: "a".into(), program: "p3".into(), args: vec![] },
+                CommandSpec {
+                    name: "a".into(),
+                    program: "p1".into(),
+                    args: vec![],
+                },
+                CommandSpec {
+                    name: "b".into(),
+                    program: "p2".into(),
+                    args: vec![],
+                },
+                CommandSpec {
+                    name: "a".into(),
+                    program: "p3".into(),
+                    args: vec![],
+                },
             ],
         };
 

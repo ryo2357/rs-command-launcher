@@ -1,7 +1,7 @@
 ---
 name: execute_plan.agent
-description: 'コーディング計画の実装'
-tools: ['execute', 'read', 'edit', 'search']
+description: "コーディング計画の実装"
+tools: ["execute", "read", "edit", "search"]
 ---
 
 - このプロンプトはスラッシュコマンドで呼び出されます。

@@ -1,24 +1,64 @@
 ---
 name: scrap
 description: ここまでの会話を、スクラップとして記録します。
-model: Raptor mini (Preview) (copilot)
-tools: ['edit']
+tools: ["edit"]
 ---
 
+# 指示事項
 
-- ここまでの会話内容を`scrap`として記録してください。
-- 会話内の重複内容の省略以外の省略・要約は不要。
-- 最新のメッセージだけでなく、必要に応じて関連する過去のメッセージも含めてください。
-- 複数の提案・手段が会話で挙がっていた場合、それらの違い・メリットデメリットは省略しないでください。
-- 追加の意見や推測は`scrap`に含めないでください。
+- セッション内すべての会話から`scrap`を作成してください。
+- このセッションではアシスタントとの壁打ちを行い、その内容を見返すために`scrap`を作成します。
+- 会話内で出てきた具体的な手段・情報を見返すために`scrap`を作成します。
 
-## Scrap specifications
+## 最重要: 省略ルール
 
-- Scraps are written in markdown format in the `.docs/scraps` directory.
-- Scrap filenames must follow these rules:
-  - Use the format `YYYYMMDD-title.md`, including the date and the title.
-  - The title should concisely express the idea in Japanese.
-- Avoid using tables in markdown; use bulleted lists instead.
-- Avoid using strong emphasis (e.g., bold or italics) in markdown.
-- Code, commands, type/generic examples, and placeholders must be written as inline code, e.g., `ffmpeg ...` / `Arc<RwLock<T>>` / `command ["seek", "<SEC>", "absolute+exact"]`
-- For multi-line code, use code blocks.
+- 会話内容でユーザーが否定した回答や、完全に重複する文は省略してよい。
+- それ以外は省略しない。特に次は省略禁止:
+
+  - 実現するための手段の比較
+  - 具体的な条件・数値・閾値・候補の列挙
+  - 手順（ステップ）、注意点の箇条書き、設計上の論点
+  - 計算式やアルゴリズムの説明
+  - 実装案の具体（例: `reqwest`、`tokio`、`quick-xml`、`polars`、`arelle` 等）
+  - 例として提示されたデータ構造（JSON 例など）
+
+- 具体情報（数値・条件・式・コマンド・コード断片・固有名詞）は、可能な限り原文の語を保って記録する（言い換えで一般化しない）。
+
+## 最重要: 記載禁止（メタ情報の排除）
+
+- 次は scrap に書かない:
+  - 指示文
+  - 添付ファイル確認や確認ログ
+  - テンプレートに従った/従っていない等の作業報告、自己評価、進行宣言
+
+## 推奨：省略しない内容
+
+- 実現手段の例示は記録として重要な場合が多いため、会話内容から省略しない
+- 例示する際にコメントがあれば、それも含めて記録する
+
+## 推奨：記載しない内容
+
+- 会話の流れ
+  会話で出てきた具体的な内容が重要であるため、会話の流れ自体は記録しない
+- 次のアクション
+  会話の内容が重要であるため、次に何をするか等の情報は記録しない
+
+## Scrap ファイルの仕様
+
+- `.docs/scraps` ディレクトリに markdown で作成する
+- ファイル名は `YYYYMMDD-タイトル.md`
+- 表は使わず箇条書き
+- 強調（太字/斜体）を避ける
+- コード・コマンド・型・プレースホルダはインラインコードで、複数行はコードブロック
+
+## 出力テンプレート
+
+```md
+# <タイトル>
+
+## 概要
+
+<会話の目的と結論を短く>
+
+<以下、H2 見出しで会話内容を整理>
+```

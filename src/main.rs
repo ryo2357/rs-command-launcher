@@ -64,7 +64,7 @@ fn app() -> anyhow::Result<()> {
             return Ok(());
         }
         _ => {
-            ui::runnner::run(settings)?;
+            ui::startup::startup(settings)?;
         }
     }
     Ok(())

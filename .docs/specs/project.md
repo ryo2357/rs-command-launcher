@@ -15,19 +15,23 @@
 - src/main.rs
   - エントリーポイント
   - 設定読み込みと簡易 CLI を提供する
-  - 引数なしの場合は何もしない（最小 UI の呼び出しはコメントアウト中）
+- 引数なしの場合は UI を起動する
 - src/model/mod.rs
   - ドメインモデルのモジュール定義
 - src/model/commands.rs
   - コマンド定義と操作（検索、マージ、重複排除、変数展開）
 - src/config.rs
   - 設定ファイルの探索パス解決と setting.yaml / env.yaml の読み込み
-  - 読み込み用の構造体（LoadSettings / LoadEnv）と、モデル（Commands）への変換
+  - 読み込み用の構造体（LoadSettings / LoadEnv など）と、UI 向けの Settings への変換
 - src/runner.rs
   - 設定に基づくプロセス起動
-- src/ui.rs
+- src/ui/mod.rs
+  - UI 関連モジュール定義
+- src/ui/launcher.rs
   - 最小 UI（コマンド名入力と実行）
   - eframe/egui による単一ウィンドウ
+- src/ui/initialize.rs
+  - egui の初期化（フォント設定など）
 
 ## エントリーポイント構成
 
@@ -40,8 +44,8 @@
 - ログ出力は `log` クレートの `info!` と `error!` を使用する
 - ログの初期化は `main` 関数で `init_logger()` を呼び出して行う
 - ログレベル
-  - Debug ビルドは Debug 以上を出力する
-  - Release ビルドは Info 以上を出力する
+  - Debug ビルドは Info 以上を出力する
+  - Release ビルドは Warn 以上を出力する
 - 簡易 CLI の出力
   - `list` はコマンド一覧（置換後）をログ出力する
   - `run-first` と `run` は起動したコマンド名をログ出力する
@@ -91,7 +95,7 @@
   - YAML 設定読み込み
   - 置換変数の読み込み
   - 設定（置換後）に基づくコマンド起動
-  - 最小 UI（src/ui.rs）は存在するが、引数なし起動での UI 起動は無効化中
+  - 最小 UI（src/ui/launcher.rs）を引数なし起動で呼び出す
 - 未実装
   - 常駐
   - タスクトレイ

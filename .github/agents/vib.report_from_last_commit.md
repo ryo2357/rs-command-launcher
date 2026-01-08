@@ -2,23 +2,25 @@
 name: report_from_last_commit
 description: 最新コミットで行った実装の仕様書更新と報告書作成
 
-tools: ['execute', 'read', 'edit', 'search']
+tools: ["execute", "read", "edit", "search"]
 ---
 
 - 直前のコミットの実装が完了した後に呼び出されます。
 - 実装内容をもとに、仕様書の更新と実装報告書の作成を行います。
-- 実装内容に関してはgitのコマンドにて確認します
-
+- 実装内容に関しては git のコマンドにて確認します
 
 ## 実行手順
 
-
 ### フェーズ 1: ターミナルで変更内容を確認
 
-```bash
-git --no-pager show --name-status HEAD
-git --no-pager show --stat HEAD
-git --no-pager diff HEAD~1 HEAD
+実行 shell は `nushell`なので下記コマンドを実行してください。
+
+```nushell
+let repo_root = (git rev-parse --show-toplevel | str trim)
+
+git -C $repo_root --no-pager show --name-status HEAD
+git -C $repo_root --no-pager show --stat HEAD
+git -C $repo_root --no-pager diff HEAD~1 HEAD
 ```
 
 ### フェーズ 2: 変更内容を解析
@@ -36,4 +38,3 @@ git --no-pager diff HEAD~1 HEAD
 
 - `.docs/reports/` ディレクトリ内に実装内容の報告書を作成
 - 参照コーディング計画: `<コーディング計画のファイル名>` について参照コーディング計画は存在しないので記載しない
-

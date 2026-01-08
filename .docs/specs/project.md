@@ -30,8 +30,13 @@
 - src/ui/launcher.rs
   - 最小 UI（コマンド名入力と実行）
   - eframe/egui による単一ウィンドウ
+  - 初回 update 時に Frame から HWND を取得し、ホットキー登録を行う
 - src/ui/initialize.rs
   - egui の初期化（フォント設定など）
+- src/ui/hotkey.rs
+  - Windows のグローバルホットキー登録と、ウィンドウ表示/非表示切り替え
+- src/ui/runnner.rs
+  - UI 起動処理（eframe::run_native）のエントリーポイント
 
 ## エントリーポイント構成
 
@@ -96,8 +101,8 @@
   - 置換変数の読み込み
   - 設定（置換後）に基づくコマンド起動
   - 最小 UI（src/ui/launcher.rs）を引数なし起動で呼び出す
+- - グローバルホットキーによる UI の表示/非表示切り替え（Alt+Space）
 - 未実装
   - 常駐
   - タスクトレイ
-  - グローバルホットキー
   - フルスクリーン判定とホットキー無効化

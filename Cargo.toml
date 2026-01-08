@@ -13,3 +13,10 @@ serde_yaml = "0.9.33"
 log = "0.4.28"
 env_logger = "0.11.8"
 eframe = { version = "0.30.0", default-features = false, features = ["default_fonts", "glow"] }
+windows-sys = { version = "0.52", features = [
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_System_Threading",
+] }
+raw-window-handle = "0.6"

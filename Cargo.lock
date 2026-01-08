@@ -328,8 +328,10 @@ dependencies = [
  "eframe",
  "env_logger",
  "log",
+ "raw-window-handle",
  "serde",
  "serde_yaml",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]

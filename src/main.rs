@@ -1,4 +1,4 @@
-use std::env;
+// use std::env;
 
 use anyhow::Context;
 use log::LevelFilter;
@@ -64,7 +64,7 @@ fn app() -> anyhow::Result<()> {
             return Ok(());
         }
         _ => {
-            ui::launcher::run(settings)?;
+            ui::runnner::run(settings)?;
         }
     }
     Ok(())

@@ -1,13 +1,19 @@
 use eframe::egui;
 use log::{debug, error, info};
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+use std::sync::mpsc;
+use std::time::Duration;
 use windows_sys::Win32::Foundation::HWND;
+use windows_sys::Win32::UI::WindowsAndMessaging::{
+    IsWindowVisible, PostMessageW, SW_HIDE, SW_SHOW, SetForegroundWindow, ShowWindow, WM_CLOSE,
+};
 
 use crate::config::Settings;
 use crate::model::commands;
 use crate::runner;
 
 use super::hotkey::HotkeyToggle;
+use super::task_tray::{TaskTray, TrayCommand};
 
 #[derive(PartialEq)]
 enum InitState {
@@ -20,10 +26,20 @@ pub struct LauncherApp {
     commands: commands::Commands,
     hwnd: Option<HWND>,
     hotkey: Option<HotkeyToggle>,
+    // タスクトレイ機能
+    _tray: TaskTray,
+    tray_rx: mpsc::Receiver<TrayCommand>,
+    egui_ctx: egui::Context,
 }
 
 impl LauncherApp {
-    pub fn new(settings: Settings, hotkey: Option<HotkeyToggle>) -> anyhow::Result<Self> {
+    pub fn new(
+        settings: Settings,
+        egui_ctx: egui::Context,
+        hotkey: Option<HotkeyToggle>,
+        tray: TaskTray,
+        tray_rx: mpsc::Receiver<TrayCommand>,
+    ) -> anyhow::Result<Self> {
         let commands = settings.commands();
         Ok(Self {
             state: InitState::Start,
@@ -31,12 +47,16 @@ impl LauncherApp {
             commands,
             hwnd: None,
             hotkey,
+            _tray: tray,
+            tray_rx,
+            egui_ctx,
         })
     }
 
     fn ensure_initialised(&mut self, frame: &mut eframe::Frame) {
         self.ensure_hwnd(frame);
         self.ensure_hotkey();
+        self.ensure_tray();
         self.state = InitState::Ready;
     }
     fn ensure_hwnd(&mut self, frame: &mut eframe::Frame) {
@@ -44,12 +64,14 @@ impl LauncherApp {
             return;
         }
 
-        if let Ok(handle) = frame.window_handle() {
-            if let RawWindowHandle::Win32(h) = handle.as_raw() {
-                let hwnd = h.hwnd.get();
-                self.hwnd = Some(hwnd);
-                log::info!("HWND 取得完了: {:?}", hwnd);
-            }
+        if let Ok(handle) = frame.window_handle()
+            && let RawWindowHandle::Win32(h) = handle.as_raw()
+        {
+            let hwnd = h.hwnd.get();
+            self.hwnd = Some(hwnd);
+            // トレイ側からの WM_NULL 起床が効くように、HWND は早めに注入する
+            self._tray.set_hwnd(hwnd);
+            log::info!("HWND 取得完了: {:?}", hwnd);
         }
     }
     fn ensure_hotkey(&mut self) {
@@ -63,7 +85,7 @@ impl LauncherApp {
             return;
         };
 
-        match HotkeyToggle::register(hwnd) {
+        match HotkeyToggle::register(hwnd, self.egui_ctx.clone()) {
             Ok(hk) => {
                 self.hotkey = Some(hk);
                 info!("ホットキー登録完了");
@@ -73,6 +95,100 @@ impl LauncherApp {
             }
         }
     }
+
+    fn ensure_tray(&mut self) {
+        if let Some(hwnd) = self.hwnd {
+            self._tray.set_hwnd(hwnd);
+        } else {
+            error!("タスクトレイ初期化失敗: HWND が未設定です");
+        }
+    }
+
+    fn show_window(&self) {
+        let Some(hwnd) = self.hwnd else {
+            error!("show_window: HWND が未設定です");
+            return;
+        };
+        unsafe {
+            ShowWindow(hwnd, SW_SHOW);
+            SetForegroundWindow(hwnd);
+        }
+    }
+
+    fn hide_window(&self) {
+        let Some(hwnd) = self.hwnd else {
+            error!("hide_window: HWND が未設定です");
+            return;
+        };
+        unsafe {
+            ShowWindow(hwnd, SW_HIDE);
+        }
+
+        // ウィンドウ非表示中は eframe/egui の update が止まりがちなので、
+        // まず一度だけ将来の再描画を予約して、受信ポーリングが再開するきっかけを作る。
+        self.egui_ctx
+            .request_repaint_after(Duration::from_millis(50));
+    }
+    fn is_window_visible(&self) -> Option<bool> {
+        let hwnd = self.hwnd?;
+        // 0 = false, non-0 = true
+        Some(unsafe { IsWindowVisible(hwnd) != 0 })
+    }
+
+    fn toggle_window(&mut self, frame: &mut eframe::Frame) {
+        if self.hwnd.is_none() {
+            self.ensure_hwnd(frame);
+        }
+
+        match self.is_window_visible() {
+            Some(true) => self.hide_window(),
+            Some(false) => self.show_window(),
+            None => error!("toggle_window: HWND が未設定です"),
+        }
+    }
+    // タスクトレイからのコマンド処理
+    fn process_tray_commands(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
+        if self.hwnd.is_none() {
+            self.ensure_hwnd(frame);
+        }
+
+        while let Ok(cmd) = self.tray_rx.try_recv() {
+            match cmd {
+                TrayCommand::Show => {
+                    info!("tray: show");
+                    if self.is_window_visible() == Some(false) {
+                        self.show_window();
+                    }
+                }
+                TrayCommand::Quit => {
+                    info!("tray: quit");
+                    // 非表示中でも確実に終了させるため、Win32 に WM_CLOSE を投げる
+                    if let Some(hwnd) = self.hwnd {
+                        unsafe {
+                            PostMessageW(hwnd, WM_CLOSE, 0, 0);
+                        }
+                    } else {
+                        // 念のため（HWND 未取得時のフォールバック）
+                        ctx.send_viewport_cmd(egui::ViewportCommand::Close);
+                    }
+                }
+            }
+        }
+    }
+    // ホットキー処理
+    fn process_hotkey(&mut self, frame: &mut eframe::Frame) {
+        // 借用衝突を避けつつ、取りこぼしなく処理する
+        loop {
+            let fired = self.hotkey.as_ref().is_some_and(|hk| hk.try_recv_toggle());
+            if !fired {
+                break;
+            }
+            info!("hotkey: toggle");
+            self.toggle_window(frame);
+        }
+    }
+
+    // コマンド実行機能
 
     fn try_run_command(&mut self) {
         let input = self.command_input.trim();
@@ -110,6 +226,11 @@ impl eframe::App for LauncherApp {
             debug!("LauncherApp: 初期化処理が完了しました");
         }
 
+        // タスクトレイトUI処理
+        self.process_tray_commands(ctx, frame);
+        // ホットキーの処理
+        self.process_hotkey(frame);
+
         // メインUI
         egui::CentralPanel::default().show(ctx, |ui| {
             let response = ui.add(
@@ -132,17 +253,9 @@ impl eframe::App for LauncherApp {
             // ui.label(&self.status);
         });
 
-        // ホットキーでウィンドウ表示/非表示の切り替え
-        if self.hwnd.is_none() {
-            self.hwnd = get_hwnd(frame);
+        // 非表示中でも tray/hotkey の受信処理を回すため、定期的に update を起こす。
+        if self.is_window_visible() == Some(false) {
+            ctx.request_repaint_after(Duration::from_millis(50));
         }
-    }
-}
-
-pub fn get_hwnd(frame: &eframe::Frame) -> Option<HWND> {
-    let window = frame.window_handle();
-    match window.ok()?.as_raw() {
-        RawWindowHandle::Win32(h) => Some(h.hwnd.get()),
-        _ => None,
     }
 }

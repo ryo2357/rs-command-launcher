@@ -1,3 +1,4 @@
+use eframe::egui;
 use std::sync::mpsc;
 use std::thread::{self, JoinHandle};
 
@@ -9,20 +10,21 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     MOD_ALT, RegisterHotKey, UnregisterHotKey, VK_SPACE,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    DispatchMessageW, GetMessageW, IsWindowVisible, MSG, PostThreadMessageW, SW_HIDE,
-    SW_SHOWNORMAL, SetForegroundWindow, ShowWindow, TranslateMessage, WM_HOTKEY, WM_QUIT,
+    DispatchMessageW, GetMessageW, MSG, PostMessageW, PostThreadMessageW, TranslateMessage,
+    WM_HOTKEY, WM_NULL, WM_QUIT,
 };
 
 pub struct HotkeyToggle {
     thread_id: u32,
     hotkey_id: i32,
     handle: Option<JoinHandle<()>>,
+    rx: mpsc::Receiver<()>,
 }
 
 impl HotkeyToggle {
-    pub fn register(hwnd: HWND) -> anyhow::Result<Self> {
-        // 将来的に設定からホットキーを変更できるようにする
+    pub fn register(hwnd: HWND, ctx: egui::Context) -> anyhow::Result<Self> {
         let (tid_tx, tid_rx) = mpsc::channel();
+        let (tx, rx) = mpsc::channel::<()>();
         let hotkey_id: i32 = 1;
 
         let handle = thread::spawn(move || unsafe {
@@ -32,7 +34,6 @@ impl HotkeyToggle {
             let modifiers = MOD_ALT;
             let vk = VK_SPACE;
 
-            // Alt+Space は Windows のシステムメニューと競合しやすい
             #[allow(clippy::unnecessary_cast)]
             let ok = RegisterHotKey(0, hotkey_id, modifiers as u32, vk as u32);
             if ok == 0 {
@@ -44,14 +45,15 @@ impl HotkeyToggle {
             let mut msg: MSG = std::mem::zeroed();
             while GetMessageW(&mut msg, 0, 0, 0) > 0 {
                 if msg.message == WM_HOTKEY {
-                    let visible = IsWindowVisible(hwnd) != 0;
-                    if visible {
-                        ShowWindow(hwnd, SW_HIDE);
-                    } else {
-                        ShowWindow(hwnd, SW_SHOWNORMAL);
-                        SetForegroundWindow(hwnd);
-                    }
+                    let _ = tx.send(());
+
+                    // update を確実に起こす
+                    ctx.request_repaint();
+
+                    // 念のため Win32 側も起こす
+                    PostMessageW(hwnd, WM_NULL, 0, 0);
                 }
+
                 TranslateMessage(&msg);
                 DispatchMessageW(&msg);
             }
@@ -68,14 +70,18 @@ impl HotkeyToggle {
             thread_id,
             hotkey_id,
             handle: Some(handle),
+            rx,
         })
+    }
+
+    pub fn try_recv_toggle(&self) -> bool {
+        self.rx.try_recv().is_ok()
     }
 }
 
 impl Drop for HotkeyToggle {
     fn drop(&mut self) {
         unsafe {
-            // GetMessageW ループを抜けさせる
             PostThreadMessageW(self.thread_id, WM_QUIT, 0, 0);
             UnregisterHotKey(0, self.hotkey_id);
         }

@@ -5,6 +5,7 @@ use crate::config::Settings;
 
 use super::app::LauncherApp;
 use super::hotkey::HotkeyToggle;
+use super::task_tray::TaskTray;
 
 const FONT: &[u8] = include_bytes!(r"C:/Windows/Fonts/MEIRYO.TTC");
 
@@ -13,16 +14,26 @@ pub fn startup(settings: Settings) -> anyhow::Result<()> {
 
     // ホットキースレッドの起動
     let hotkey: Option<HotkeyToggle> = None;
+    // タスクトレイ生成
+    let (tray, tray_rx) = TaskTray::new()?;
 
     info!("UI を起動します");
 
     eframe::run_native(
         "command-launcher",
         native_options,
-        Box::new(|cc| {
+        Box::new(move |cc| {
             initialize(&cc.egui_ctx);
 
-            Ok(Box::new(LauncherApp::new(settings, hotkey)?))
+            tray.set_ctx(cc.egui_ctx.clone());
+
+            Ok(Box::new(LauncherApp::new(
+                settings,
+                cc.egui_ctx.clone(),
+                hotkey,
+                tray,
+                tray_rx,
+            )?))
         }),
     )
     .map_err(|e| anyhow::Error::msg(format!("UI を起動できません: {e:?}")))?;

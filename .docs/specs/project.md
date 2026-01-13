@@ -15,7 +15,7 @@
 - src/main.rs
   - エントリーポイント
   - 設定読み込みと簡易 CLI を提供する
-- 引数なしの場合は UI を起動する
+- 引数なしの場合はアプリ本体（Controller + Hotkey + UI）を起動する
 - src/model/mod.rs
   - ドメインモデルのモジュール定義
 - src/model/commands.rs
@@ -25,23 +25,28 @@
   - 読み込み用の構造体（LoadSettings / LoadEnv など）と、UI 向けの Settings への変換
 - src/runner.rs
   - 設定に基づくプロセス起動
+- src/app/mod.rs
+  - アプリ層（UI 以外の常駐処理）
+- src/app/endpoint.rs
+  - Controller と各コンポーネント間の通信用エンドポイント定義（mpsc）
+- src/app/controller.rs
+  - 司令塔
+  - UI から受け取った HWND を保持し、ホットキーのトグル通知で表示/非表示を切り替える
+- src/app/hotkey.rs
+  - Windows のグローバルホットキー登録（Alt+Space）
+  - 検知結果を Controller へ通知する
+- src/app/task_tray.rs
+  - タスクトレイ（アイコン + メニュー）実装の置き場
+  - 現状は起動経路・Controller 連携が未実装
 - src/ui/mod.rs
   - UI 関連モジュール定義
-- src/ui/app.rs
+- src/ui/launcher.rs
   - 最小 UI（コマンド名入力と実行）
   - eframe/egui による単一ウィンドウ
-  - 初回 update 時に Frame から HWND を取得し、ホットキー登録とタスクトレイ連携（HWND 注入）を行う
-  - ホットキーやタスクトレイからのイベントを受信し、表示/非表示の切り替えを行う
-  - ウィンドウ非表示中でもイベント受信処理が回るよう、一定間隔で update を起こす
-- src/ui/hotkey.rs
-  - Windows のグローバルホットキー登録
-  - WM_HOTKEY を受けたらアプリ側へトグル要求を通知し、egui の再描画要求も行う
-- src/ui/startup.rs
+  - 初回 update 時に Frame から HWND を取得し Controller へ通知する
+- src/ui/native_runner.rs
   - UI 起動処理（eframe::run_native）のエントリーポイント
   - egui の初期化（フォント設定など）
-- src/ui/task_tray.rs
-- タスクトレイ（アイコン + メニュー）の生成
-- 表示、終了コマンドをアプリ側へ通知する
 
 ## エントリーポイント構成
 
@@ -105,9 +110,9 @@
   - YAML 設定読み込み
   - 置換変数の読み込み
   - 設定（置換後）に基づくコマンド起動
-  - 最小 UI（src/ui/app.rs）を引数なし起動で呼び出す
+  - 最小 UI（src/ui/launcher.rs）を引数なし起動で呼び出す
   - グローバルホットキーによる UI の表示/非表示切り替え（Alt+Space）
-  - タスクトレイ（表示、終了）
 - 未実装
   - 常駐
+  - タスクトレイ（表示、終了）
   - フルスクリーン判定とホットキー無効化

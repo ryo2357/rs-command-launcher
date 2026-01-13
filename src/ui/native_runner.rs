@@ -2,22 +2,14 @@ use eframe::egui;
 use log::info;
 
 use crate::config::Settings;
+use crate::ui::Launcher;
 
-use super::app::LauncherApp;
-use super::hotkey::HotkeyToggle;
-use super::task_tray::TaskTray;
+use crate::app::endpoint::UiEndpoint;
 
 const FONT: &[u8] = include_bytes!(r"C:/Windows/Fonts/MEIRYO.TTC");
 
-pub fn startup(settings: Settings) -> anyhow::Result<()> {
+pub fn eframe_startup(settings: Settings, ui_endpoint: UiEndpoint) -> anyhow::Result<()> {
     let native_options = eframe::NativeOptions::default();
-
-    // ホットキースレッドの起動
-    let hotkey: Option<HotkeyToggle> = None;
-    // タスクトレイ生成
-    let (tray, tray_rx) = TaskTray::new()?;
-
-    info!("UI を起動します");
 
     eframe::run_native(
         "command-launcher",
@@ -25,15 +17,7 @@ pub fn startup(settings: Settings) -> anyhow::Result<()> {
         Box::new(move |cc| {
             initialize(&cc.egui_ctx);
 
-            tray.set_ctx(cc.egui_ctx.clone());
-
-            Ok(Box::new(LauncherApp::new(
-                settings,
-                cc.egui_ctx.clone(),
-                hotkey,
-                tray,
-                tray_rx,
-            )?))
+            Ok(Box::new(Launcher::new(settings, ui_endpoint)?))
         }),
     )
     .map_err(|e| anyhow::Error::msg(format!("UI を起動できません: {e:?}")))?;

@@ -3,16 +3,24 @@
 use anyhow::Context;
 use log::LevelFilter;
 use log::{error, info};
+use std::sync::mpsc;
+
+mod app;
+mod model;
+mod ui;
 
 mod config;
-mod model;
 mod runner;
 
-mod ui;
+use crate::app::hotkey::Hotkey;
+use app::controller::Controller;
+use app::endpoint;
+use ui::eframe_startup;
+
 fn main() {
     init_logger();
 
-    match app() {
+    match start_cli() {
         Ok(_) => {}
         Err(e) => {
             error!("エラー: {:?}", e);
@@ -34,7 +42,7 @@ fn init_logger() {
         .init();
 }
 
-fn app() -> anyhow::Result<()> {
+fn start_cli() -> anyhow::Result<()> {
     let settings = config::load_settings()?;
 
     let args: Vec<String> = std::env::args().collect();
@@ -64,8 +72,40 @@ fn app() -> anyhow::Result<()> {
             return Ok(());
         }
         _ => {
-            ui::startup::startup(settings)?;
+            app(settings)?;
         }
     }
+    Ok(())
+}
+
+fn app(settings: config::Settings) -> anyhow::Result<()> {
+    // チャンネル準備
+    let (ui_endpoint, ui_handle) = endpoint::create_ui_endpoints();
+    let (hotkey_endpoint, hotkey_handle) = endpoint::create_hotkey_endpoints();
+    let (tray_endpoint, tray_handle) = endpoint::create_tray_endpoints();
+    let (finish_tx, finish_rx) = mpsc::channel::<()>();
+
+    // Controller（司令塔）
+    let mut controller = Controller::new(ui_handle, hotkey_handle, tray_handle, finish_rx);
+    std::thread::spawn(move || {
+        controller.run();
+    });
+
+    // ホットキー
+    let mut hotkey = Hotkey::new(hotkey_endpoint)?;
+    let hotkey_handle = std::thread::spawn(move || {
+        hotkey.run();
+    });
+    // std::thread::spawn(move || app::hotkey::start(input_tx.clone()));
+    // std::thread::spawn(move || app::tray::start(input_tx));
+
+    // UI
+    eframe_startup(settings, ui_endpoint)?;
+    info!("UI 終了待機中...");
+
+    // 終了処理が完了するのを待つ
+    let _ = finish_tx.send(());
+    let _ = hotkey_handle.join();
+
     Ok(())
 }

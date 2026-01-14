@@ -32,9 +32,13 @@
   - アプリ層（UI 以外の常駐処理）
 - src/app/endpoint.rs
   - Controller と各コンポーネント間の通信用エンドポイント定義（mpsc）
+  - UI からのイベントは HWND 取得、UI スレッド ID 取得、非アクティブ化などを通知する
 - src/app/controller.rs
   - 司令塔
   - UI から受け取った HWND を保持し、ホットキーのトグル通知で表示/非表示を切り替える
+  - UI が非アクティブ化された場合は UI を非表示にする
+  - UI のウィンドウスタイルを調整し、タスクバーに表示されないようにする
+  - UI の終了は WM_CLOSE と WM_QUIT を送って要求する
 - src/app/hotkey.rs
   - Windows のグローバルホットキー登録（Alt+Space）
   - 検知結果を Controller へ通知する
@@ -47,6 +51,8 @@
   - 最小 UI（コマンド名入力と実行）
   - eframe/egui による単一ウィンドウ
   - 初回 update 時に Frame から HWND を取得し Controller へ通知する
+  - UI スレッド ID を Controller へ通知する
+  - UI の非アクティブ化を検知し Controller へ通知する
 - src/ui/native_runner.rs
   - UI 起動処理（eframe::run_native）のエントリーポイント
   - egui の初期化（フォント設定など）
@@ -119,3 +125,12 @@
 - 未実装
   - 常駐
   - フルスクリーン判定とホットキー無効化
+
+## UI の表示仕様
+
+- UI が非アクティブ化された場合は自動で非表示にする
+- UI はタスクバーに表示しない（ツールウィンドウ扱いにする）
+
+## 既知の課題
+
+- UI を非アクティブ化して非表示にした場合、終了処理が安定しないことがある

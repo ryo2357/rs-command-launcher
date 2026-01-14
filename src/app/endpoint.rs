@@ -3,6 +3,8 @@ use windows_sys::Win32::Foundation::HWND;
 // controller <-> ui
 pub enum UiEvent {
     HwndReady(HWND),
+    ThreadIdReady(u32),
+    LostFocus,
 }
 
 pub enum UiCommand {

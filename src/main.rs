@@ -113,13 +113,19 @@ fn app(settings: config::Settings) -> anyhow::Result<()> {
     // std::thread::spawn(move || app::tray::start(input_tx));
 
     // UI
-    eframe_startup(settings, ui_endpoint)?;
-    info!("UI 終了待機中...");
+    if let Err(e) = eframe_startup(settings, ui_endpoint) {
+        error!("UIでエラーが発生しました: {:?}", e);
+    }
+
+    info!("コントローラーからの終了指示を受信、終了処理を行う");
 
     // 終了処理が完了するのを待つ
+
     let _ = finish_tx.send(());
     let _ = hotkey_handle.join();
+    info!("ホットキースレッドの終了確認");
     let _ = tray_handle.join();
+    info!("タスクトレイスレッドの終了確認");
 
     Ok(())
 }

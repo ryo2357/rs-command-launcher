@@ -9,8 +9,7 @@ use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
     MOD_ALT, RegisterHotKey, UnregisterHotKey, VK_SPACE,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    DispatchMessageW, GetMessageW, MSG, PostMessageW, PostThreadMessageW, TranslateMessage,
-    WM_HOTKEY, WM_NULL, WM_QUIT,
+    GetMessageW, MSG, PostThreadMessageW, WM_HOTKEY, WM_QUIT,
 };
 
 use crate::app::endpoint::{HotkeyCmd, HotkeyEndpoint, HotkeyEvent};

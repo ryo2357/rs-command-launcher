@@ -1,20 +1,28 @@
 use crate::app::endpoint;
 use log::{info, warn};
 use std::sync::mpsc;
-use windows_sys::Win32::Foundation::HWND;
+use windows_sys::Win32::Foundation::{GetLastError, HWND};
+// use windows_sys::Win32::UI::WindowsAndMessaging::{
+//     IsWindowVisible, PostMessageW, SW_HIDE, SW_SHOW, SetForegroundWindow, ShowWindow, WM_CLOSE,
+// };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    IsWindowVisible, PostMessageW, SW_HIDE, SW_SHOW, SetForegroundWindow, ShowWindow, WM_CLOSE,
+    GWL_EXSTYLE, GetWindowLongW, IsWindowVisible, PostMessageW, SW_HIDE, SW_SHOW, SWP_FRAMECHANGED,
+    SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SetForegroundWindow, SetWindowLongW, SetWindowPos,
+    ShowWindow, WM_CLOSE, WS_EX_APPWINDOW, WS_EX_TOOLWINDOW,
 };
+use windows_sys::Win32::UI::WindowsAndMessaging::{PostThreadMessageW, WM_QUIT};
 
 struct ControllerState {
     hwnd: Option<HWND>,
     hotkey_registered: bool,
+    ui_thread_id: Option<u32>,
 }
 impl ControllerState {
     pub fn new() -> Self {
         Self {
             hwnd: None,
             hotkey_registered: false,
+            ui_thread_id: None,
         }
     }
 }
@@ -105,11 +113,22 @@ impl Controller {
             match event {
                 endpoint::UiEvent::HwndReady(hwnd) => {
                     self.state.hwnd = Some(hwnd);
+                    self.apply_no_taskbar_style(hwnd);
 
                     // hotkey に HWND を伝達
                     let _ = self.hotkey.tx.send(endpoint::HotkeyCmd::Register(hwnd));
                     // tasktray に HWND を伝達
                     // let _ = self.tray.tx.send(endpoint::TrayCmd::Register(hwnd));
+                }
+
+                endpoint::UiEvent::ThreadIdReady(tid) => {
+                    self.state.ui_thread_id = Some(tid);
+                    info!("UI thread id 受信: {}", tid);
+                }
+                endpoint::UiEvent::LostFocus => {
+                    // UIが非アクティブ化された
+                    info!("UIが非アクティブ化されました。ウィンドウを非表示にします");
+                    self.request_hide_window();
                 }
             }
         }
@@ -143,14 +162,46 @@ impl Controller {
             warn!("show_window: HWND が未設定です");
         }
     }
+    fn request_hide_window(&mut self) {
+        if let Some(hwnd) = self.state.hwnd {
+            let is_visible = unsafe { IsWindowVisible(hwnd) };
+            if is_visible != 0 {
+                self.hide_window(hwnd);
+            } else {
+                info!("hide_window: ウィンドウは既に非表示です");
+            }
+        } else {
+            warn!("hide_window: HWND が未設定です");
+        }
+    }
 
     fn request_ui_exit(&self) {
         let Some(hwnd) = self.state.hwnd else {
             warn!("HWND が未取得のため eframe を終了できません");
             return;
         };
+
         unsafe {
-            PostMessageW(hwnd, WM_CLOSE, 0, 0);
+            let _ = PostMessageW(hwnd, WM_CLOSE, 0, 0);
+        }
+        info!("WM_CLOSE を Post しました: hwnd={:?}", hwnd);
+
+        // ここが重要：イベントループ自体を抜けさせる（run_native を戻す）
+        if let Some(tid) = self.state.ui_thread_id {
+            unsafe {
+                let ok = PostThreadMessageW(tid, WM_QUIT, 0, 0);
+                if ok == 0 {
+                    let err = GetLastError();
+                    warn!(
+                        "PostThreadMessageW(WM_QUIT) に失敗: tid={}, err={}",
+                        tid, err
+                    );
+                } else {
+                    info!("WM_QUIT を PostThreadMessageW しました: tid={}", tid);
+                }
+            }
+        } else {
+            warn!("UI thread id が未取得のため WM_QUIT を送れません");
         }
     }
 
@@ -165,11 +216,30 @@ impl Controller {
                 );
             }
         }
+        self.apply_no_taskbar_style(hwnd);
         let _ = self.ui.tx.send(endpoint::UiCommand::ForcusInput);
     }
     fn hide_window(&mut self, hwnd: HWND) {
         unsafe {
             ShowWindow(hwnd, SW_HIDE);
+        }
+    }
+    fn apply_no_taskbar_style(&self, hwnd: HWND) {
+        unsafe {
+            let ex = GetWindowLongW(hwnd, GWL_EXSTYLE);
+            let ex2 = (ex | (WS_EX_TOOLWINDOW as i32)) & !(WS_EX_APPWINDOW as i32);
+            SetWindowLongW(hwnd, GWL_EXSTYLE, ex2);
+
+            // スタイル変更を反映
+            SetWindowPos(
+                hwnd,
+                0,
+                0,
+                0,
+                0,
+                0,
+                SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED,
+            );
         }
     }
 }

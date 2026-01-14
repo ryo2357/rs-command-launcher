@@ -1,11 +1,10 @@
-use eframe::egui::menu;
 use log::info;
 use tray_icon::{
-    Icon, TrayIcon, TrayIconBuilder, TrayIconEvent,
-    menu::{Menu, MenuEvent, MenuEventReceiver, MenuId, MenuItem},
+    Icon, TrayIconBuilder,
+    menu::{Menu, MenuEvent, MenuItem},
 };
 use windows_sys::Win32::{
-    System::Com::{COINIT_APARTMENTTHREADED, CoInitializeEx, CoUninitialize},
+    System::Com::CoUninitialize,
     UI::WindowsAndMessaging::{DispatchMessageW, MSG, PM_REMOVE, PeekMessageW, TranslateMessage},
 };
 

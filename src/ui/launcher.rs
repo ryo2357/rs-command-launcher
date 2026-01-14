@@ -1,13 +1,9 @@
 use eframe::egui;
-use log::{debug, error, info};
+use log::info;
 use raw_window_handle::{HasWindowHandle, RawWindowHandle};
-// use std::sync::mpsc;
-// use std::time::Duration;
+
 use windows_sys::Win32::Foundation::HWND;
-// use windows_sys::Win32::UI::WindowsAndMessaging::{
-//     IsWindowVisible, PostMessageW, SW_HIDE, SW_SHOW, SetForegroundWindow, ShowWindow, WM_CLOSE,
-// };
-use windows_sys::Win32::UI::WindowsAndMessaging::{SW_HIDE, ShowWindow};
+use windows_sys::Win32::System::Threading::GetCurrentThreadId;
 
 use crate::config::Settings;
 use crate::model::commands;
@@ -30,6 +26,7 @@ pub struct Launcher {
     hwnd: Option<HWND>,
 
     endpoint: UiEndpoint,
+    last_app_focused: Option<bool>,
 }
 
 impl Launcher {
@@ -41,6 +38,7 @@ impl Launcher {
             commands,
             hwnd: None,
             endpoint,
+            last_app_focused: None,
         })
     }
 
@@ -62,7 +60,10 @@ impl Launcher {
             self.hwnd = Some(hwnd);
             // トレイ側からの WM_NULL 起床が効くように、HWND は早めに注入する
             let _ = self.endpoint.tx.send(UiEvent::HwndReady(hwnd));
-            log::info!("HWND 取得完了: {:?}", hwnd);
+
+            let tid = unsafe { GetCurrentThreadId() };
+            let _ = self.endpoint.tx.send(UiEvent::ThreadIdReady(tid));
+            info!("HWND / UI thread id 取得: hwnd={:?}, tid={}", hwnd, tid);
         }
     }
 
@@ -76,6 +77,20 @@ impl Launcher {
                 }
             }
         }
+    }
+
+    // 非アクティブ化の検知と処理
+    fn process_focus_lost(&mut self, ctx: &egui::Context) {
+        let app_focused = ctx.input(|i| i.raw.focused);
+        if let Some(prev) = self.last_app_focused
+            && prev
+            && !app_focused
+        {
+            // 非アクティブ化された
+            info!("アプリが非アクティブ化されました");
+            let _ = self.endpoint.tx.send(UiEvent::LostFocus);
+        }
+        self.last_app_focused = Some(app_focused);
     }
     // コマンド実行機能
 
@@ -109,14 +124,17 @@ impl eframe::App for Launcher {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
         // 初期化処理
         if self.state == InitState::Start {
-            debug!("LauncherApp: 初期化処理を開始します");
+            // info!("LauncherApp: 初期化処理を開始します");
             // 初期化が必要な場合はここで行う
             self.ensure_initialised(frame);
-            debug!("LauncherApp: 初期化処理が完了しました");
+            // info!("LauncherApp: 初期化処理が完了しました");
         }
 
         // コントローラーからのイベント処理
         self.process_controller(ctx, frame);
+
+        // 非アクティブ化時の処理
+        self.process_focus_lost(ctx);
 
         // メインUI
         egui::CentralPanel::default().show(ctx, |ui| {

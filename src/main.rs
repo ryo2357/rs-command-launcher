@@ -91,11 +91,24 @@ fn app(settings: config::Settings) -> anyhow::Result<()> {
         controller.run();
     });
 
+    // タスクトレイ
+    // let mut tray = app::task_tray::TaskTray::new(tray_endpoint)?;
+    let tray_handle = std::thread::spawn(move || {
+        let tray = app::task_tray::TaskTray::new(tray_endpoint);
+        match tray.run() {
+            Ok(_) => {}
+            Err(e) => {
+                error!("タスクトレイでエラーが発生しました: {:?}", e);
+            }
+        };
+    });
+
     // ホットキー
     let mut hotkey = Hotkey::new(hotkey_endpoint)?;
     let hotkey_handle = std::thread::spawn(move || {
         hotkey.run();
     });
+
     // std::thread::spawn(move || app::hotkey::start(input_tx.clone()));
     // std::thread::spawn(move || app::tray::start(input_tx));
 
@@ -106,6 +119,7 @@ fn app(settings: config::Settings) -> anyhow::Result<()> {
     // 終了処理が完了するのを待つ
     let _ = finish_tx.send(());
     let _ = hotkey_handle.join();
+    let _ = tray_handle.join();
 
     Ok(())
 }

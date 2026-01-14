@@ -5,7 +5,9 @@ pub enum UiEvent {
     HwndReady(HWND),
 }
 
-pub enum UiCommand {}
+pub enum UiCommand {
+    ForcusInput,
+}
 
 pub struct UiEndpoint {
     pub tx: std::sync::mpsc::Sender<UiEvent>,
@@ -72,20 +74,36 @@ pub fn create_hotkey_endpoints() -> (HotkeyEndpoint, HotkeyHandle) {
 // controller <- tasktray
 // 現状は表示・終了のコマンドの単方向通信
 
-pub enum TrayCommand {
+pub enum TrayEvent {
     ShowWindow,
-    Exit,
+    Quit,
 }
 
-pub struct TrayEndpoint {
-    pub rx: std::sync::mpsc::Receiver<TrayCommand>,
+pub enum TrayCmd {
+    Finish,
 }
 
 pub struct TrayHandle {
-    pub tx: std::sync::mpsc::Sender<TrayCommand>,
+    pub rx: std::sync::mpsc::Receiver<TrayEvent>,
+    pub tx: std::sync::mpsc::Sender<TrayCmd>,
+}
+
+pub struct TrayEndpoint {
+    pub tx: std::sync::mpsc::Sender<TrayEvent>,
+    pub rx: std::sync::mpsc::Receiver<TrayCmd>,
 }
 
 pub fn create_tray_endpoints() -> (TrayEndpoint, TrayHandle) {
-    let (tx, rx) = std::sync::mpsc::channel();
-    (TrayEndpoint { rx }, TrayHandle { tx })
+    let (event_tx, event_rx) = std::sync::mpsc::channel();
+    let (cmd_tx, cmd_rx) = std::sync::mpsc::channel();
+    (
+        TrayEndpoint {
+            tx: event_tx,
+            rx: cmd_rx,
+        },
+        TrayHandle {
+            rx: event_rx,
+            tx: cmd_tx,
+        },
+    )
 }

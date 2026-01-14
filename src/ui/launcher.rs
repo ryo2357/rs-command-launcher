@@ -30,11 +30,6 @@ pub struct Launcher {
     hwnd: Option<HWND>,
 
     endpoint: UiEndpoint,
-    // hotkey: Option<HotkeyToggle>,
-    // // タスクトレイ機能
-    // _tray: TaskTray,
-    // tray_rx: mpsc::Receiver<TrayCommand>,
-    // egui_ctx: egui::Context,
 }
 
 impl Launcher {
@@ -74,12 +69,12 @@ impl Launcher {
     // コントローラーからのイベント受信処理
     fn process_controller(&mut self, _ctx: &egui::Context, _frame: &mut eframe::Frame) {
         while let Ok(cmd) = self.endpoint.rx.try_recv() {
-            // match cmd {
-            //     UiCommand::HideWindow => {
-            //         self.hide_window();
-            //         info!("ウィンドウを非表示にしました");
-            //     }
-            // }
+            match cmd {
+                UiCommand::ForcusInput => {
+                    // フォーカスを入力欄に移す
+                    // UIを作成後に実装する
+                }
+            }
         }
     }
     // コマンド実行機能

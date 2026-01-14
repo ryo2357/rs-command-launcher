@@ -66,6 +66,8 @@ impl Hotkey {
                 info!("ホットキー検知: Alt+Space");
                 let _ = self.endpoint.tx.send(HotkeyEvent::Toggle);
             }
+            // CPU負荷を抑えるために短いスリープを挿入
+            std::thread::sleep(std::time::Duration::from_millis(20));
         }
         // info!("Hotkey スレッド終了");
         let Some(thread_id) = self.thread_id else {

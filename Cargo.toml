@@ -18,8 +18,13 @@ windows-sys = { version = "0.52", features = [
   "Win32_UI_WindowsAndMessaging",
   "Win32_UI_Input_KeyboardAndMouse",
   "Win32_System_Threading",
+  "Win32_System_Com",
 ] }
 raw-window-handle = "0.6"
 # icon = "0.2.0"
 tray-icon = "0.21.3"
 image = { version = "0.25.9", default-features = false, features = ["png"] }
+
+[build-dependencies]
+image = { version = "0.25.9", default-features = false, features = ["png"] }
+anyhow = "1.0.100"
